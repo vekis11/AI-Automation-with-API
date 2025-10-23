@@ -222,7 +222,6 @@ async def detect_anomalies(
     token: str = Depends(verify_token)
 ):
     """Detect anomalies in API logs"""
-    global model, scaler, is_trained
     
     if not is_trained or model is None or scaler is None:
         raise HTTPException(status_code=400, detail="Model not trained. Please train the model first.")
@@ -276,7 +275,6 @@ async def detect_anomalies(
 @app.get("/status", response_model=ModelStatus)
 async def get_model_status(token: str = Depends(verify_token)):
     """Get model status and information"""
-    global model, scaler, is_trained
     
     if not is_trained:
         return ModelStatus(
