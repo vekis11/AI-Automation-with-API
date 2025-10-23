@@ -251,7 +251,7 @@
         <div class="controls">
             <div class="input-group">
                 <input type="text" id="baseUrl" placeholder="Base URL (e.g., https://your-api.com)" value="http://localhost:8000">
-                <input type="text" id="authToken" placeholder="Authorization Token (optional)" value="">
+                <input type="text" id="authToken" placeholder="Authorization Token (optional)" value="your-api-token-here">
                 <button class="btn" onclick="runAllChecks()">🔍 Check All Endpoints</button>
                 <button class="btn" onclick="clearResults()">🗑️ Clear Results</button>
             </div>
@@ -276,6 +276,7 @@
 
         <div class="footer">
             <p>💡 Tip: Use the preset buttons above for common deployment platforms</p>
+            <p>🔐 Authentication: Training/Detection endpoints require a valid token</p>
             <p>📚 Documentation: <a href="#" id="docsLink" target="_blank">API Docs</a></p>
             <p>🌐 Hosted on GitHub Pages | <a href="https://github.com/vekis11/AI-Automation-with-API" target="_blank">View Source</a></p>
         </div>
@@ -378,6 +379,17 @@
             };
         }
 
+        function getAuthHeaders() {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            const token = getAuthToken();
+            if (token && token !== 'your-token-here') {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            return headers;
+        }
+
         async function checkEndpoint(endpoint) {
             const baseUrl = getBaseUrl();
             const url = `${baseUrl}${endpoint.path}`;
@@ -387,7 +399,7 @@
                 if (endpoint.method === 'GET') {
                     response = await fetch(url, {
                         method: 'GET',
-                        headers: getHeaders()
+                        headers: getAuthHeaders()
                     });
                 } else if (endpoint.method === 'POST') {
                     let data = {};
@@ -401,7 +413,7 @@
                     
                     response = await fetch(url, {
                         method: 'POST',
-                        headers: getHeaders(),
+                        headers: getAuthHeaders(),
                         body: JSON.stringify(data)
                     });
                 }
