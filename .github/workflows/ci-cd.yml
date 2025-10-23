@@ -16,7 +16,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
+    - name: Validate matrix python version
+      run: |
+        # Guard against YAML parsing that converts '3.10' -> 3.1
+        if [ "${{ matrix.python-version }}" = "3.1" ]; then
+          echo "ERROR: Invalid python version '3.1' detected in the matrix."
+          echo "Please quote versions like '3.10' in the workflow to avoid YAML float parsing."
+          exit 1
+        fi
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:

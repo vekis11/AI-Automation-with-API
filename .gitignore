@@ -132,6 +132,7 @@ dmypy.json
 models/
 logs/
 data/
+AI-Automation-with-API/.git_nested_backup/
 *.pkl
 *.joblib
 pipeline_test_report.json
