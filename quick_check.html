@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick API Check</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Quick API Health Check</h1>
+        
+        <div class="input-group">
+            <label for="url">API Base URL:</label>
+            <input type="text" id="url" value="http://localhost:8000" placeholder="http://localhost:8000">
+        </div>
+        
+        <div class="input-group">
+            <label for="token">Auth Token (optional):</label>
+            <input type="text" id="token" placeholder="your-token-here">
+        </div>
+        
+        <button onclick="checkHealth()">🏥 Health Check</button>
+        <button onclick="checkAll()">🔍 Check All</button>
+        <button onclick="openDocs()">📚 Open Docs</button>
+        
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        async function makeRequest(endpoint, method = 'GET', data = null) {
+            const baseUrl = document.getElementById('url').value.trim();
+            const token = document.getElementById('token').value.trim();
+            
+            const url = `${baseUrl}${endpoint}`;
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            try {
+                const options = {
+                    method: method,
+                    headers: headers
+                };
+                
+                if (data && method === 'POST') {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(url, options);
+                const text = await response.text();
+                
+                return {
+                    success: response.ok,
+                    status: response.status,
+                    data: text
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    status: 0,
+                    data: error.message
+                };
+            }
+        }
+        
+        function showResult(message, type = 'success') {
+            const result = document.getElementById('result');
+            result.textContent = message;
+            result.className = `result ${type}`;
+            result.style.display = 'block';
+        }
+        
+        async function checkHealth() {
+            showResult('Checking health...', 'loading');
+            
+            const result = await makeRequest('/health');
+            
+            if (result.success) {
+                showResult(`✅ Health Check PASSED\nStatus: ${result.status}\nResponse: ${result.data}`, 'success');
+            } else {
+                showResult(`❌ Health Check FAILED\nStatus: ${result.status}\nError: ${result.data}`, 'error');
+            }
+        }
+        
+        async function checkAll() {
+            showResult('Running all checks...', 'loading');
+            
+            const endpoints = [
+                { path: '/health', method: 'GET', name: 'Health' },
+                { path: '/metrics', method: 'GET', name: 'Metrics' },
+                { path: '/status', method: 'GET', name: 'Status' },
+                { path: '/docs', method: 'GET', name: 'Documentation' }
+            ];
+            
+            let results = [];
+            
+            for (const endpoint of endpoints) {
+                const result = await makeRequest(endpoint.path, endpoint.method);
+                results.push({
+                    name: endpoint.name,
+                    success: result.success,
+                    status: result.status,
+                    data: result.data
+                });
+            }
+            
+            const passed = results.filter(r => r.success).length;
+            const total = results.length;
+            
+            let message = `📊 Check Results: ${passed}/${total} passed\n\n`;
+            
+            results.forEach(r => {
+                const icon = r.success ? '✅' : '❌';
+                message += `${icon} ${r.name}: ${r.success ? 'PASSED' : 'FAILED'} (${r.status})\n`;
+                if (r.data && r.data.length < 200) {
+                    message += `   Response: ${r.data}\n`;
+                }
+                message += '\n';
+            });
+            
+            const type = passed === total ? 'success' : 'error';
+            showResult(message, type);
+        }
+        
+        function openDocs() {
+            const baseUrl = document.getElementById('url').value.trim();
+            window.open(`${baseUrl}/docs`, '_blank');
+        }
+    </script>
+</body>
+</html>

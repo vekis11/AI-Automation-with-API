@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Anomaly Detection - Deployment Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            min-width: 200px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .status-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .status-card.passing {
+            border-color: #28a745;
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        }
+
+        .status-card.failing {
+            border-color: #dc3545;
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        }
+
+        .status-card.loading {
+            border-color: #ffc107;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .status-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .status-icon {
+            font-size: 1.5em;
+        }
+
+        .status-details {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+
+        .response-data {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .overall-status {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .overall-status.success {
+            color: #28a745;
+        }
+
+        .overall-status.error {
+            color: #dc3545;
+        }
+
+        .overall-status.loading {
+            color: #ffc107;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .success-message {
+            color: #28a745;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+
+        @media (max-width: 768px) {
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .input-group input {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 API Anomaly Detection</h1>
+            <p>Deployment Health Dashboard</p>
+        </div>
+
+        <div class="controls">
+            <div class="input-group">
+                <input type="text" id="baseUrl" placeholder="Base URL (e.g., http://localhost:8000)" value="http://localhost:8000">
+                <input type="text" id="authToken" placeholder="Authorization Token (optional)" value="">
+                <button class="btn" onclick="runAllChecks()">🔍 Check All Endpoints</button>
+                <button class="btn" onclick="clearResults()">🗑️ Clear Results</button>
+            </div>
+        </div>
+
+        <div id="overallStatus" class="overall-status loading">
+            <div class="loading-spinner"></div> Ready to check deployment...
+        </div>
+
+        <div class="status-grid" id="statusGrid">
+            <!-- Status cards will be populated here -->
+        </div>
+
+        <div class="footer">
+            <p>💡 Tip: Make sure your API service is running before checking endpoints</p>
+            <p>📚 Documentation: <a href="#" id="docsLink" target="_blank">API Docs</a></p>
+        </div>
+    </div>
+
+    <script>
+        const endpoints = [
+            {
+                name: 'Health Check',
+                path: '/health',
+                method: 'GET',
+                description: 'Basic health status'
+            },
+            {
+                name: 'Metrics',
+                path: '/metrics',
+                method: 'GET',
+                description: 'Prometheus metrics'
+            },
+            {
+                name: 'Model Status',
+                path: '/status',
+                method: 'GET',
+                description: 'ML model status'
+            },
+            {
+                name: 'API Documentation',
+                path: '/docs',
+                method: 'GET',
+                description: 'Interactive API docs'
+            },
+            {
+                name: 'Training Endpoint',
+                path: '/train',
+                method: 'POST',
+                description: 'Train ML model',
+                requiresData: true
+            },
+            {
+                name: 'Detection Endpoint',
+                path: '/detect',
+                method: 'POST',
+                description: 'Detect anomalies',
+                requiresData: true
+            }
+        ];
+
+        function getBaseUrl() {
+            return document.getElementById('baseUrl').value.trim() || 'http://localhost:8000';
+        }
+
+        function getAuthToken() {
+            return document.getElementById('authToken').value.trim();
+        }
+
+        function getHeaders() {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            const token = getAuthToken();
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            return headers;
+        }
+
+        function getTrainingData() {
+            return {
+                logs: [
+                    {
+                        timestamp: new Date().toISOString(),
+                        user_id: "test_user",
+                        endpoint: "/api/test",
+                        method: "GET",
+                        response_time: 150,
+                        status_code: 200,
+                        ip_address: "192.168.1.100"
+                    }
+                ]
+            };
+        }
+
+        function getDetectionData() {
+            return {
+                logs: [
+                    {
+                        timestamp: new Date().toISOString(),
+                        user_id: "test_user",
+                        endpoint: "/api/test",
+                        method: "GET",
+                        response_time: 150,
+                        status_code: 200,
+                        ip_address: "192.168.1.100"
+                    }
+                ]
+            };
+        }
+
+        async function checkEndpoint(endpoint) {
+            const baseUrl = getBaseUrl();
+            const url = `${baseUrl}${endpoint.path}`;
+            
+            try {
+                let response;
+                if (endpoint.method === 'GET') {
+                    response = await fetch(url, {
+                        method: 'GET',
+                        headers: getHeaders()
+                    });
+                } else if (endpoint.method === 'POST') {
+                    let data = {};
+                    if (endpoint.requiresData) {
+                        if (endpoint.path === '/train') {
+                            data = getTrainingData();
+                        } else if (endpoint.path === '/detect') {
+                            data = getDetectionData();
+                        }
+                    }
+                    
+                    response = await fetch(url, {
+                        method: 'POST',
+                        headers: getHeaders(),
+                        body: JSON.stringify(data)
+                    });
+                }
+
+                const responseText = await response.text();
+                let responseData;
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch (e) {
+                    responseData = responseText;
+                }
+
+                return {
+                    success: response.ok,
+                    status: response.status,
+                    data: responseData,
+                    error: null
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    status: 0,
+                    data: null,
+                    error: error.message
+                };
+            }
+        }
+
+        function createStatusCard(endpoint, result) {
+            const card = document.createElement('div');
+            card.className = 'status-card';
+            
+            if (result === null) {
+                card.classList.add('loading');
+            } else if (result.success) {
+                card.classList.add('passing');
+            } else {
+                card.classList.add('failing');
+            }
+
+            const icon = result === null ? '⏳' : (result.success ? '✅' : '❌');
+            const statusText = result === null ? 'Checking...' : 
+                             (result.success ? 'PASSED' : 'FAILED');
+
+            card.innerHTML = `
+                <div class="status-header">
+                    <div class="status-title">${endpoint.name}</div>
+                    <div class="status-icon">${icon}</div>
+                </div>
+                <div class="status-details">
+                    <strong>${endpoint.method} ${endpoint.path}</strong><br>
+                    ${endpoint.description}<br>
+                    Status: <strong>${statusText}</strong>
+                    ${result && result.status ? ` (${result.status})` : ''}
+                </div>
+                ${result && result.data ? `
+                    <div class="response-data">${JSON.stringify(result.data, null, 2)}</div>
+                ` : ''}
+                ${result && result.error ? `
+                    <div class="error-message">Error: ${result.error}</div>
+                ` : ''}
+            `;
+
+            return card;
+        }
+
+        async function runAllChecks() {
+            const statusGrid = document.getElementById('statusGrid');
+            const overallStatus = document.getElementById('overallStatus');
+            
+            // Clear previous results
+            statusGrid.innerHTML = '';
+            overallStatus.className = 'overall-status loading';
+            overallStatus.innerHTML = '<div class="loading-spinner"></div> Running checks...';
+
+            // Create loading cards
+            const loadingCards = endpoints.map(endpoint => {
+                const card = createStatusCard(endpoint, null);
+                return card;
+            });
+            statusGrid.append(...loadingCards);
+
+            // Update docs link
+            const docsLink = document.getElementById('docsLink');
+            docsLink.href = `${getBaseUrl()}/docs`;
+
+            // Run checks
+            const results = [];
+            for (let i = 0; i < endpoints.length; i++) {
+                const endpoint = endpoints[i];
+                const result = await checkEndpoint(endpoint);
+                results.push(result);
+                
+                // Update the card
+                const card = createStatusCard(endpoint, result);
+                statusGrid.children[i].replaceWith(card);
+                
+                // Small delay to show progress
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            // Update overall status
+            const allPassed = results.every(r => r.success);
+            const anyFailed = results.some(r => !r.success);
+            
+            if (allPassed) {
+                overallStatus.className = 'overall-status success';
+                overallStatus.innerHTML = '🎉 All checks passed! Deployment is healthy!';
+            } else if (anyFailed) {
+                overallStatus.className = 'overall-status error';
+                const failedCount = results.filter(r => !r.success).length;
+                overallStatus.innerHTML = `⚠️ ${failedCount} check(s) failed. Review the results above.`;
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('statusGrid').innerHTML = '';
+            document.getElementById('overallStatus').className = 'overall-status loading';
+            document.getElementById('overallStatus').innerHTML = '<div class="loading-spinner"></div> Ready to check deployment...';
+        }
+
+        // Auto-run checks when page loads
+        window.addEventListener('load', () => {
+            // Don't auto-run, let user click the button
+            console.log('Deployment dashboard loaded. Click "Check All Endpoints" to start.');
+        });
+    </script>
+</body>
+</html>
