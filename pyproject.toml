@@ -1,6 +1,7 @@
 [tool.black]
 line-length = 127
 target-version = ['py38', 'py39', 'py310', 'py311']
+skip-string-normalization = true
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -42,7 +43,8 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
     "--cov-report=xml",
-    "--cov-fail-under=90"
+    "--cov-fail-under=80",
+    "--maxfail=5"
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",

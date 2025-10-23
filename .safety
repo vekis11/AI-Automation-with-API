@@ -1,0 +1,6 @@
+# Safety configuration
+# Ignore specific vulnerabilities that are false positives or acceptable risks
+ignore = [
+    # Add specific CVE IDs here if needed
+    # "CVE-2023-12345",
+]
