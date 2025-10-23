@@ -1,0 +1,31 @@
+{
+  "name": "API Anomaly Detection",
+  "description": "ML-powered anomaly detection for API logs",
+  "repository": "https://github.com/vekis11/AI-Automation-with-API",
+  "logo": "https://raw.githubusercontent.com/vekis11/AI-Automation-with-API/main/docs/logo.png",
+  "keywords": ["python", "fastapi", "ml", "anomaly-detection"],
+  "success_url": "/health",
+  "scripts": {
+    "dokku": {
+      "predeploy": "pip install -r requirements.txt"
+    }
+  },
+  "env": {
+    "PYTHON_VERSION": {
+      "description": "Python version",
+      "value": "3.11"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
