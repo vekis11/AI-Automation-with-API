@@ -4,11 +4,12 @@ Deployment Health Check Script
 Comprehensive URL-based testing for the API Anomaly Detection System
 """
 
-import requests
 import json
-import time
 import sys
-from typing import Dict, Any, Optional
+import time
+from typing import Any, Dict, Optional
+
+import requests
 
 
 class DeploymentChecker:
