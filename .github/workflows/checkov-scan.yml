@@ -343,7 +343,7 @@ jobs:
           
           echo "" >> ./threat-models/threat-models-summary.md
           echo "## Next Steps" >> ./threat-models/threat-models-summary.md
-          echo "1. Download [OWASP Threat Dragon](https://owasp.org/www-project-threat-dragon/) desktop application" >> ./threat-models/threat-models-summary.md
+          echo "1. Download [OWASP Threat Dragon](https://github.com/OWASP/threat-dragon) desktop application" >> ./threat-models/threat-models-summary.md
           echo "2. Open the JSON files to visualize and customize threat models" >> ./threat-models/threat-models-summary.md
           echo "3. Create custom threat models for your specific application architecture" >> ./threat-models/threat-models-summary.md
           
@@ -402,6 +402,6 @@ jobs:
           echo "### 🛠️ Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "1. Download artifacts to access all threat models" >> $GITHUB_STEP_SUMMARY
-          echo "2. Use [OWASP Threat Dragon desktop app](https://owasp.org/www-project-threat-dragon/) to open and customize" >> $GITHUB_STEP_SUMMARY
+          echo "2. Use [OWASP Threat Dragon desktop app](https://github.com/OWASP/threat-dragon) to open and customize" >> $GITHUB_STEP_SUMMARY
           echo "3. Create custom threat models for your specific architecture" >> $GITHUB_STEP_SUMMARY
           echo "4. Review [OWASP Top 10](https://owasp.org/www-project-top-ten/) for common threats" >> $GITHUB_STEP_SUMMARY
