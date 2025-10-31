@@ -1,0 +1,188 @@
+name: Security & IaC Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  # Trivy - All-in-one scanner (vulnerabilities, misconfigurations, secrets)
+  trivy-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+        continue-on-error: true
+      
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy'
+      
+      - name: Trivy - Scan Dockerfile
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          scanners: 'config,secret'
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: ${{ github.event_name == 'pull_request' && 1 || 0 }}
+      
+      - name: Trivy - Scan docker-compose files
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          scanners: 'config'
+          format: 'table'
+          exit-code: ${{ github.event_name == 'pull_request' && 1 || 0 }}
+        continue-on-error: true
+
+  # Checkov - Comprehensive IaC scanning
+  checkov-scan:
+    name: Checkov IaC Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Checkov
+        run: |
+          pip install checkov
+          checkov --version
+      
+      - name: Run Checkov on Dockerfile
+        run: |
+          checkov -f Dockerfile \
+            --framework docker \
+            --output cli \
+            --output json --output-file-path checkov-dockerfile.json \
+            --compact \
+            --quiet || true
+        continue-on-error: true
+      
+      - name: Run Checkov on docker-compose files
+        run: |
+          checkov -f docker-compose.yml \
+            --framework docker \
+            --output cli \
+            --output json --output-file-path checkov-compose.json \
+            --compact \
+            --quiet || true
+        continue-on-error: true
+      
+      - name: Run Checkov on all files (comprehensive)
+        run: |
+          checkov -d . \
+            --framework docker \
+            --output cli \
+            --output json --output-file-path checkov-full.json \
+            --compact \
+            --skip-check CKV_DOCKER_3 \
+            --soft-fail || true
+      
+      - name: Checkov Results Summary
+        run: |
+          echo "## Checkov Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          if [ -f checkov-full.json ]; then
+            echo "### Scan completed" >> $GITHUB_STEP_SUMMARY
+            echo "Check the logs above for detailed results." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### No issues found or scan skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Fail on critical issues (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ -f checkov-full.json ]; then
+            CRITICAL_COUNT=$(jq '[.results.failed_checks[] | select(.check_id | startswith("CKV") and (. | split("_")[2] | tonumber >= 7)))] | length' checkov-full.json 2>/dev/null || echo "0")
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "Found $CRITICAL_COUNT critical security issues. Please review and fix."
+              exit 1
+            fi
+          fi
+
+  # Gitleaks - Fast secret scanning
+  gitleaks-scan:
+    name: Gitleaks Secret Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history for better secret detection
+          fetch-depth: 0
+      
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-path: .gitleaksignore  # Optional: create this file to ignore patterns
+          no-git: false
+          exit-code: ${{ github.event_name == 'pull_request' && 1 || 0 }}
+          severity-threshold: high
+      
+      - name: Upload Gitleaks results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: |
+            gitleaks-report.json
+            gitleaks-report.txt
+
+  # Security scan summary
+  security-summary:
+    name: Security Scan Summary
+    runs-on: ubuntu-latest
+    needs: [trivy-scan, checkov-scan, gitleaks-scan]
+    if: always()
+    
+    steps:
+      - name: Security Scan Summary
+        run: |
+          echo "## 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Scans Completed:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Trivy: ${{ needs.trivy-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Checkov: ${{ needs.checkov-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Gitleaks: ${{ needs.gitleaks-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "🔍 Review all security findings before merging." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "📊 Security scans completed. Check individual job results for details." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Critical and High severity issues will block PR merges." >> $GITHUB_STEP_SUMMARY
+

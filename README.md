@@ -355,7 +355,7 @@ print(f"Detected {len(anomalies)} anomalies")
 
 ### CI/CD Pipeline
 - Automated testing on every commit
-- Security scanning with Bandit
+- **Security scanning**: Trivy (all-in-one), Checkov (IaC), Gitleaks (secrets)
 - Performance testing
 - Docker image building and pushing
 
@@ -389,5 +389,6 @@ For support and questions:
 ---
 
 **Built with ❤️ for production-ready ML-powered anomaly detection**
-#   T r i g g e r   w o r k f l o w  
+#   T r i g g e r   w o r k f l o w 
+ 
  

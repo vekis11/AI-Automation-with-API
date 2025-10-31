@@ -1,0 +1,16 @@
+# Gitleaks ignore patterns
+# Patterns here will be excluded from secret scanning
+
+# Test files with example tokens (use real secrets should still be flagged)
+**/test_*.py
+**/test_*.sh
+**/*test*.py
+
+# Documentation files
+**/*.md
+**/*.txt
+
+# Example/placeholder tokens in documentation
+**/README.md
+**/API_Anomaly_Detection_Project_Document.txt
+
