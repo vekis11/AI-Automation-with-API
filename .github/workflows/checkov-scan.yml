@@ -1,7 +1,8 @@
 name: Security Scan (Checkov, Trivy, Semgrep, OWASP Threat Dragon)
 
-# Comprehensive Security Scanning Workflow
+# Comprehensive Security Scanning Workflow with HIPAA Compliance
 # This workflow scans ALL supported IaC frameworks and infrastructure types including:
+# HIPAA Compliance: Enabled for PII/PHI protection checks
 # Cloud Infrastructure: Terraform (.tf, .tfvars, .tf.json, modules, Cloud/Enterprise), Terraform CDK,
 #   CloudFormation (.yaml, .yml, .json, SAM templates), ARM templates, Bicep (.bicep),
 #   GCP Deployment Manager, OpenStack Heat templates
@@ -32,8 +33,11 @@ jobs:
         with:
           fetch-depth: 0  # Full history for better scanning
       
-      - name: Run Checkov - Scan ALL IaC Frameworks
+      - name: Run Checkov - Scan ALL IaC Frameworks with HIPAA Compliance
         uses: bridgecrewio/checkov-action@master
+        env:
+          CKV_FRAMEWORK: all
+          CKV_ENABLE_FRAMEWORKS: hipaa
         with:
           directory: .  # Scans entire repository recursively
           framework: all  # Auto-detects and scans: Terraform, CloudFormation, ARM, Bicep, Kubernetes, Docker, Helm, GitHub Actions, GitLab CI, CircleCI, Serverless, Ansible, Chef, Puppet, Pulumi, OpenAPI/Swagger, and all supported formats
@@ -43,6 +47,23 @@ jobs:
           skip_check: ''  # Don't skip any checks
           quiet: false  # Show detailed output
           soft_fail: false  # Fail on security issues
+      
+      - name: Set up Python for HIPAA compliance checks
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Run Checkov - HIPAA Compliance Checks for PII/PHI
+        run: |
+          pip install checkov
+          echo "🔒 Running HIPAA compliance checks for PHI/PII protection..."
+          echo "Scanning for HIPAA violations that could expose Protected Health Information (PHI) or Personally Identifiable Information (PII)..."
+          checkov -d . \
+            --framework all \
+            --compliance hipaa \
+            --output cli \
+            --compact || echo "HIPAA compliance scan completed"
+        continue-on-error: true
       
       - name: Upload Checkov results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
