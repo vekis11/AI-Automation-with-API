@@ -1,11 +1,8 @@
-name: Checkov Comprehensive IaC Security Scan
+name: Security Scan (Checkov, Trivy, Semgrep)
 
 on:
   push:
-    # Triggers on push to any branch
   pull_request:
-    # Triggers on all PR events (opened, synchronize, reopened, ready_for_review)
-    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
@@ -13,237 +10,79 @@ permissions:
   security-events: write
 
 jobs:
-  checkov_scan_all:
-    name: Checkov - All IaC Frameworks
+  checkov:
+    name: Checkov - IaC Security Scan
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for better scanning
-    
-      - name: Run Checkov - Scan all supported IaC frameworks
-        id: checkov_all
+      
+      - name: Run Checkov
         uses: bridgecrewio/checkov-action@master
         with:
           directory: .
           framework: all
-          output_format: cli,sarif,json
-          output_file_path: console,checkov-results.sarif,checkov-results.json
-          soft_fail: false
-          skip_check: ''
-          quiet: false
-          check: ''
-          repo_root_for_plan_enrichment: .
+          output_format: cli,sarif
+          output_file_path: console,checkov-results.sarif
       
-      - name: Upload Checkov SARIF results to GitHub Security
+      - name: Upload Checkov results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: checkov-results.sarif
-          category: 'checkov-iac-comprehensive'
+          category: 'checkov'
+
+  trivy:
+    name: Trivy - Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       
-      - name: Upload Checkov JSON results as artifact
-        uses: actions/upload-artifact@v4
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          name: checkov-results
-          path: checkov-results.json
-          retention-days: 30
-  
-  # Explicit scans for major framework categories
-  checkov_cloud_infrastructure:
-    name: Checkov - Cloud Infrastructure
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        framework:
-          - terraform
-          - cloudformation
-          - arm
-          - bicep
-          - serverless
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy'
       
-      - name: Run Checkov - ${{ matrix.framework }}
-        uses: bridgecrewio/checkov-action@master
-        continue-on-error: true
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
         with:
-          directory: .
-          framework: ${{ matrix.framework }}
-          output_format: cli
-          soft_fail: true
-          quiet: false
-  
-  checkov_container_orchestration:
-    name: Checkov - Containers & Orchestration
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        framework:
-          - docker
-          - kubernetes
-          - helm
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Run Checkov - ${{ matrix.framework }}
-        uses: bridgecrewio/checkov-action@master
-        continue-on-error: true
-        with:
-          directory: .
-          framework: ${{ matrix.framework }}
-          output_format: cli
-          soft_fail: true
-          quiet: false
-  
-  checkov_cicd_pipelines:
-    name: Checkov - CI/CD Pipelines
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Run Checkov - GitHub Actions
-        uses: bridgecrewio/checkov-action@master
-        continue-on-error: true
-        with:
-          directory: .github/workflows
-          framework: github_actions
-          output_format: cli
-          soft_fail: true
-          quiet: false
-      
-      - name: Run Checkov - GitLab CI
-        uses: bridgecrewio/checkov-action@master
-        continue-on-error: true
-        with:
-          directory: .
-          framework: gitlab_ci
-          output_format: cli
-          soft_fail: true
-          quiet: false
-      
-      - name: Run Checkov - CircleCI
-        uses: bridgecrewio/checkov-action@master
-        continue-on-error: true
-        with:
-          directory: .circleci
-          framework: circleci
-          output_format: cli
-          soft_fail: true
-          quiet: false
-  
-  checkov_configuration_management:
-    name: Checkov - Configuration Management
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        framework:
-          - ansible
-          - chef
-          - puppet
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Run Checkov - ${{ matrix.framework }}
-        uses: bridgecrewio/checkov-action@master
-        continue-on-error: true
-        with:
-          directory: .
-          framework: ${{ matrix.framework }}
-          output_format: cli
-          soft_fail: true
-          quiet: false
-  
-  scan_summary:
-    name: Security Scan Summary
-    runs-on: ubuntu-latest
-    needs: [checkov_scan_all, checkov_cloud_infrastructure, checkov_container_orchestration, checkov_cicd_pipelines, checkov_configuration_management]
-    if: always()
-    
-    steps:
-      - name: Generate Scan Summary
-        run: |
-          echo "## 🔒 Comprehensive Checkov IaC Security Scan Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Scanned Frameworks:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### ☁️ Cloud Infrastructure" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Terraform (.tf, .tfvars, .tf.json, modules)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ CloudFormation (.yaml, .yml, .json, SAM templates)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Azure ARM templates" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Azure Bicep (.bicep)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ GCP Deployment Manager" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ OpenStack Heat templates" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Serverless Framework" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### 🐳 Containers & Orchestration" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Kubernetes (YAML manifests, Kustomize)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Helm charts" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Docker (Dockerfile, docker-compose.yml)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### 🔄 CI/CD Pipelines" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ GitHub Actions (.github/workflows/)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ GitLab CI (.gitlab-ci.yml)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ CircleCI (.circleci/config.yml)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Bitbucket Pipelines (bitbucket-pipelines.yml)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Argo Workflows" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### ⚙️ Configuration Management" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Ansible (playbooks, roles)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Chef (cookbooks, recipes)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Puppet (manifests)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### 📋 Other Formats" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Pulumi (limited support)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ OpenAPI/Swagger (API specifications)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ General JSON/YAML (auto-detected)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔍 What It Scans For:" >> $GITHUB_STEP_SUMMARY
-          echo "- Security misconfigurations" >> $GITHUB_STEP_SUMMARY
-          echo "- Compliance violations (PCI-DSS, HIPAA, SOC 2, etc.)" >> $GITHUB_STEP_SUMMARY
-          echo "- Best practice violations" >> $GITHUB_STEP_SUMMARY
-          echo "- Exposed secrets or credentials" >> $GITHUB_STEP_SUMMARY
-          echo "- Network security issues" >> $GITHUB_STEP_SUMMARY
-          echo "- Access control problems" >> $GITHUB_STEP_SUMMARY
-          echo "- Encryption settings" >> $GITHUB_STEP_SUMMARY
-          echo "- Resource configuration errors" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Job Status:" >> $GITHUB_STEP_SUMMARY
-          echo "- Main Scan: ${{ needs.checkov_scan_all.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Cloud Infrastructure: ${{ needs.checkov_cloud_infrastructure.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Containers & Orchestration: ${{ needs.checkov_container_orchestration.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- CI/CD Pipelines: ${{ needs.checkov_cicd_pipelines.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Configuration Management: ${{ needs.checkov_configuration_management.result }}" >> $GITHUB_STEP_SUMMARY
+          scan-type: 'fs'
+          scan-ref: '.'
+          scanners: 'vuln,config,secret'
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
 
+  semgrep:
+    name: Semgrep - Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/python
+            p/ci
+      
+      - name: Upload Semgrep results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: 'semgrep'
+        continue-on-error: true
