@@ -1,5 +1,18 @@
 name: Security Scan (Checkov, Trivy, Semgrep, OWASP Threat Dragon)
 
+# Comprehensive Security Scanning Workflow
+# This workflow scans ALL supported IaC frameworks and infrastructure types including:
+# Cloud Infrastructure: Terraform (.tf, .tfvars, .tf.json, modules, Cloud/Enterprise), Terraform CDK,
+#   CloudFormation (.yaml, .yml, .json, SAM templates), ARM templates, Bicep (.bicep),
+#   GCP Deployment Manager, OpenStack Heat templates
+# Containers: Kubernetes (YAML, Kustomize), Helm charts, Docker (Dockerfile, docker-compose.yml)
+# CI/CD: GitHub Actions, GitLab CI, CircleCI, Bitbucket Pipelines, Argo Workflows
+# Serverless: Serverless Framework, AWS SAM
+# Config Mgmt: Ansible, Chef, Puppet
+# Other: Pulumi, OpenAPI/Swagger, General JSON/YAML
+# Cloud Providers: AWS (S3, IAM, VPC, EC2, RDS, Lambda), Azure (Storage, Key Vault, App Service),
+#   GCP (Compute, Storage, IAM), Alibaba Cloud (ACS, OSS)
+
 on:
   push:
   pull_request:
@@ -11,80 +24,113 @@ permissions:
 
 jobs:
   checkov:
-    name: Checkov - IaC Security Scan
+    name: Checkov - Comprehensive IaC Security Scan (All Frameworks)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better scanning
       
-      - name: Run Checkov
+      - name: Run Checkov - Scan ALL IaC Frameworks
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: .
-          framework: all
+          directory: .  # Scans entire repository recursively
+          framework: all  # Auto-detects and scans: Terraform, CloudFormation, ARM, Bicep, Kubernetes, Docker, Helm, GitHub Actions, GitLab CI, CircleCI, Serverless, Ansible, Chef, Puppet, Pulumi, OpenAPI/Swagger, and all supported formats
           output_format: cli,sarif
           output_file_path: console,checkov-results.sarif
+          check: ''  # Run all checks (no exclusions)
+          skip_check: ''  # Don't skip any checks
+          quiet: false  # Show detailed output
+          soft_fail: false  # Fail on security issues
       
       - name: Upload Checkov results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: checkov-results.sarif
-          category: 'checkov'
+          category: 'checkov-iac-all-frameworks'
 
   trivy:
-    name: Trivy - Vulnerability Scan
+    name: Trivy - Comprehensive Vulnerability & Config Scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for secret detection
       
-      - name: Run Trivy vulnerability scanner in repo mode
+      - name: Run Trivy vulnerability scanner (SARIF output)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
-          scan-ref: '.'
+          scan-ref: '.'  # Scans entire repository
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
+          scanners: 'vuln,config,secret'  # Vulnerabilities, misconfigurations, secrets
       
-      - name: Upload Trivy results to GitHub Security
+      - name: Upload Trivy SARIF results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
-          category: 'trivy'
+          category: 'trivy-comprehensive'
       
-      - name: Run Trivy filesystem scan
+      - name: Run Trivy filesystem scan (detailed output)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
-          scan-ref: '.'
-          scanners: 'vuln,config,secret'
+          scan-ref: '.'  # Scans all files: Dockerfiles, docker-compose, K8s manifests, Terraform, CloudFormation, etc.
+          scanners: 'vuln,config,secret'  # All scanner types
           format: 'table'
           severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'  # Don't fail workflow, report only
+      
+      - name: Run Trivy config scan for IaC files
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'  # Scans: Dockerfile, docker-compose, Terraform, CloudFormation, K8s, Helm, etc.
+          scanners: 'config'
+          format: 'table'
+          exit-code: '0'
+        continue-on-error: true
 
   semgrep:
-    name: Semgrep - Static Analysis
+    name: Semgrep - Comprehensive Static Analysis
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Run Semgrep
+      - name: Run Semgrep - Comprehensive Security Scan
         uses: returntocorp/semgrep-action@v1
         with:
           config: >-
             p/security-audit
             p/python
+            p/javascript
+            p/typescript
+            p/go
+            p/java
+            p/csharp
+            p/php
+            p/ruby
+            p/docker
+            p/kubernetes
+            p/terraform
+            p/cloudformation
             p/ci
+            p/owasp-top-ten
+            p/r2c-security-audit
       
       - name: Upload Semgrep results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: semgrep.sarif
-          category: 'semgrep'
+          category: 'semgrep-static-analysis'
         continue-on-error: true
 
   threat-dragon:
