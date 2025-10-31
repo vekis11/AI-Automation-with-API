@@ -307,13 +307,6 @@ jobs:
         continue-on-error: true
         id: validate-models
       
-      - name: Install OWASP Threat Dragon CLI (if available)
-        run: |
-          echo "Attempting to install OWASP Threat Dragon CLI..."
-          npm install -g @owasp/threat-dragon-cli || echo "CLI installation skipped (may not be available in npm registry)"
-          npm list -g @owasp/threat-dragon-cli || echo "CLI check completed"
-        continue-on-error: true
-      
       - name: Generate threat model report
         run: |
           echo "Generating threat model summary report..."
