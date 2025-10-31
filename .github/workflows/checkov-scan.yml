@@ -2,9 +2,10 @@ name: Checkov Comprehensive IaC Security Scan
 
 on:
   push:
-    branches: [ main, develop ]
+    # Triggers on push to any branch
   pull_request:
-    branches: [ main, develop ]
+    # Triggers on all PR events (opened, synchronize, reopened, ready_for_review)
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 jobs:
