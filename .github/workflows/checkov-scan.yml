@@ -189,193 +189,57 @@ jobs:
     if: always()
     
     steps:
-      - name: Download Checkov Results
-        uses: actions/download-artifact@v4
-        with:
-          name: checkov-results
-          path: ./results
-        continue-on-error: true
-      
-      - name: Generate Scan Summary with Results Table
+      - name: Generate Scan Summary
         run: |
-          echo "# 🔒 Checkov IaC Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔒 Comprehensive Checkov IaC Security Scan Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "### Scanned Frameworks:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Try to parse JSON results if available
-          if [ -f ./results/checkov-results.json ]; then
-            # Check if jq is available
-            if command -v jq &> /dev/null; then
-              echo "## 📊 Scan Results Summary" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              
-              # Extract summary statistics
-              PASSED=$(jq -r '.summary.passed // 0' ./results/checkov-results.json 2>/dev/null || echo "0")
-              FAILED=$(jq -r '.summary.failed // 0' ./results/checkov-results.json 2>/dev/null || echo "0")
-              SKIPPED=$(jq -r '.summary.skipped // 0' ./results/checkov-results.json 2>/dev/null || echo "0")
-              TOTAL=$(jq -r '.summary.resources_found // 0' ./results/checkov-results.json 2>/dev/null || echo "0")
-              
-              echo "### 📈 Overall Statistics" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "| Metric | Count | Status |" >> $GITHUB_STEP_SUMMARY
-              echo "|--------|-------|--------|" >> $GITHUB_STEP_SUMMARY
-              echo "| ✅ **Passed Checks** | $PASSED | Safe |" >> $GITHUB_STEP_SUMMARY
-              echo "| ❌ **Failed Checks** | $FAILED | Action Required |" >> $GITHUB_STEP_SUMMARY
-              echo "| ⏭️ **Skipped Checks** | $SKIPPED | N/A |" >> $GITHUB_STEP_SUMMARY
-              echo "| 📦 **Total Resources** | $TOTAL | Scanned |" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              
-              # Extract failed checks details
-              FAILED_COUNT=$(jq -r '.results.failed_checks | length // 0' ./results/checkov-results.json 2>/dev/null || echo "0")
-              
-              if [ "$FAILED_COUNT" -gt 0 ]; then
-                echo "### ⚠️ Failed Security Checks" >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
-                echo "| Check ID | Severity | Framework | File | Description |" >> $GITHUB_STEP_SUMMARY
-                echo "|----------|----------|----------|------|-------------|" >> $GITHUB_STEP_SUMMARY
-                
-                # Extract first 20 failed checks for table (to avoid huge output)
-                jq -r '.results.failed_checks[0:20][] | "| \(.check_id // "N/A") | \(.check_severity // "UNKNOWN") | \(.check_class // "N/A") | `\(.file_path // "N/A")` | \(.check_name // "N/A") |"' ./results/checkov-results.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || true
-                
-                if [ "$FAILED_COUNT" -gt 20 ]; then
-                  REMAINING=$((FAILED_COUNT - 20))
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  echo "*... and $REMAINING more failed checks. See full report in artifacts.*" >> $GITHUB_STEP_SUMMARY
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                fi
-              else
-                echo "### ✅ No Failed Checks!" >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
-                echo "🎉 All security checks passed successfully!" >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
-              fi
-              
-              # Framework breakdown
-              echo "### 🔍 Framework Coverage" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "| Framework | Status | Resources |" >> $GITHUB_STEP_SUMMARY
-              echo "|-----------|-------|-----------|" >> $GITHUB_STEP_SUMMARY
-              
-              # Extract unique frameworks from results
-              jq -r '.results.failed_checks + .results.passed_checks | map(select(.check_class != null)) | group_by(.check_class) | map({framework: .[0].check_class, count: length}) | .[] | "| \(.framework // "Unknown") | ✅ Scanned | \(.count) |"' ./results/checkov-results.json 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || echo "| All Frameworks | ✅ Scanned | Multiple |" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "## ℹ️ Scan Results" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Detailed results are available in the workflow logs and GitHub Security tab." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          # Job Status Table
-          echo "### 📋 Job Execution Status" >> $GITHUB_STEP_SUMMARY
+          echo "#### ☁️ Cloud Infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Terraform (.tf, .tfvars, .tf.json, modules)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ CloudFormation (.yaml, .yml, .json, SAM templates)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Azure ARM templates" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Azure Bicep (.bicep)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GCP Deployment Manager" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ OpenStack Heat templates" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Serverless Framework" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Job | Status | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|--------|--------|" >> $GITHUB_STEP_SUMMARY
-          
-          # Determine status emoji and text
-          MAIN_STATUS="${{ needs.checkov_scan_all.result }}"
-          if [ "$MAIN_STATUS" = "success" ]; then
-            MAIN_EMOJI="✅"
-            MAIN_TEXT="Success"
-          elif [ "$MAIN_STATUS" = "failure" ]; then
-            MAIN_EMOJI="❌"
-            MAIN_TEXT="Failed"
-          else
-            MAIN_EMOJI="⚠️"
-            MAIN_TEXT="Skipped"
-          fi
-          echo "| 🔐 Main Comprehensive Scan | $MAIN_EMOJI | $MAIN_TEXT |" >> $GITHUB_STEP_SUMMARY
-          
-          CLOUD_STATUS="${{ needs.checkov_cloud_infrastructure.result }}"
-          if [ "$CLOUD_STATUS" = "success" ]; then
-            CLOUD_EMOJI="✅"
-            CLOUD_TEXT="Success"
-          elif [ "$CLOUD_STATUS" = "failure" ]; then
-            CLOUD_EMOJI="⚠️"
-            CLOUD_TEXT="Issues Found"
-          else
-            CLOUD_EMOJI="⏭️"
-            CLOUD_TEXT="Skipped"
-          fi
-          echo "| ☁️ Cloud Infrastructure | $CLOUD_EMOJI | $CLOUD_TEXT |" >> $GITHUB_STEP_SUMMARY
-          
-          CONTAINER_STATUS="${{ needs.checkov_container_orchestration.result }}"
-          if [ "$CONTAINER_STATUS" = "success" ]; then
-            CONTAINER_EMOJI="✅"
-            CONTAINER_TEXT="Success"
-          elif [ "$CONTAINER_STATUS" = "failure" ]; then
-            CONTAINER_EMOJI="⚠️"
-            CONTAINER_TEXT="Issues Found"
-          else
-            CONTAINER_EMOJI="⏭️"
-            CONTAINER_TEXT="Skipped"
-          fi
-          echo "| 🐳 Containers & Orchestration | $CONTAINER_EMOJI | $CONTAINER_TEXT |" >> $GITHUB_STEP_SUMMARY
-          
-          CICD_STATUS="${{ needs.checkov_cicd_pipelines.result }}"
-          if [ "$CICD_STATUS" = "success" ]; then
-            CICD_EMOJI="✅"
-            CICD_TEXT="Success"
-          elif [ "$CICD_STATUS" = "failure" ]; then
-            CICD_EMOJI="⚠️"
-            CICD_TEXT="Issues Found"
-          else
-            CICD_EMOJI="⏭️"
-            CICD_TEXT="Skipped"
-          fi
-          echo "| 🔄 CI/CD Pipelines | $CICD_EMOJI | $CICD_TEXT |" >> $GITHUB_STEP_SUMMARY
-          
-          CONFIG_STATUS="${{ needs.checkov_configuration_management.result }}"
-          if [ "$CONFIG_STATUS" = "success" ]; then
-            CONFIG_EMOJI="✅"
-            CONFIG_TEXT="Success"
-          elif [ "$CONFIG_STATUS" = "failure" ]; then
-            CONFIG_EMOJI="⚠️"
-            CONFIG_TEXT="Issues Found"
-          else
-            CONFIG_EMOJI="⏭️"
-            CONFIG_TEXT="Skipped"
-          fi
-          echo "| ⚙️ Configuration Management | $CONFIG_EMOJI | $CONFIG_TEXT |" >> $GITHUB_STEP_SUMMARY
+          echo "#### 🐳 Containers & Orchestration" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Kubernetes (YAML manifests, Kustomize)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Helm charts" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Docker (Dockerfile, docker-compose.yml)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # SKIDO Branding Footer - Stylish
+          echo "#### 🔄 CI/CD Pipelines" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GitHub Actions (.github/workflows/)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GitLab CI (.gitlab-ci.yml)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ CircleCI (.circleci/config.yml)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Bitbucket Pipelines (bitbucket-pipelines.yml)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Argo Workflows" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "#### ⚙️ Configuration Management" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Ansible (playbooks, roles)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Chef (cookbooks, recipes)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Puppet (manifests)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "<div align=\"center\">" >> $GITHUB_STEP_SUMMARY
+          echo "#### 📋 Other Formats" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Pulumi (limited support)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ OpenAPI/Swagger (API specifications)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ General JSON/YAML (auto-detected)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 🚀 Workflow Orchestrated by SKIDO" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔍 What It Scans For:" >> $GITHUB_STEP_SUMMARY
+          echo "- Security misconfigurations" >> $GITHUB_STEP_SUMMARY
+          echo "- Compliance violations (PCI-DSS, HIPAA, SOC 2, etc.)" >> $GITHUB_STEP_SUMMARY
+          echo "- Best practice violations" >> $GITHUB_STEP_SUMMARY
+          echo "- Exposed secrets or credentials" >> $GITHUB_STEP_SUMMARY
+          echo "- Network security issues" >> $GITHUB_STEP_SUMMARY
+          echo "- Access control problems" >> $GITHUB_STEP_SUMMARY
+          echo "- Encryption settings" >> $GITHUB_STEP_SUMMARY
+          echo "- Resource configuration errors" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "<h2>" >> $GITHUB_STEP_SUMMARY
-          echo "  <img src=\"https://img.shields.io/badge/⚡_SKIDO-Orchestration-28a745?style=for-the-badge&logo=github&logoColor=white&labelColor=0D1117\" alt=\"SKIDO\" />" >> $GITHUB_STEP_SUMMARY
-          echo "</h2>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "<table align=\"center\">" >> $GITHUB_STEP_SUMMARY
-          echo "  <tr>" >> $GITHUB_STEP_SUMMARY
-          echo "    <td align=\"center\">" >> $GITHUB_STEP_SUMMARY
-          echo "      <img src=\"https://img.shields.io/badge/🎯_Security_First-Built_in-00d4ff?style=flat-square&logo=shield-check\" alt=\"Security First\" />" >> $GITHUB_STEP_SUMMARY
-          echo "    </td>" >> $GITHUB_STEP_SUMMARY
-          echo "    <td align=\"center\">" >> $GITHUB_STEP_SUMMARY
-          echo "      <img src=\"https://img.shields.io/badge/🔍_Comprehensive-Full_Scan-ff6b6b?style=flat-square&logo=search\" alt=\"Comprehensive\" />" >> $GITHUB_STEP_SUMMARY
-          echo "    </td>" >> $GITHUB_STEP_SUMMARY
-          echo "    <td align=\"center\">" >> $GITHUB_STEP_SUMMARY
-          echo "      <img src=\"https://img.shields.io/badge/⚡_Automated-Excellence-ffd93d?style=flat-square&logo=zap\" alt=\"Automated\" />" >> $GITHUB_STEP_SUMMARY
-          echo "    </td>" >> $GITHUB_STEP_SUMMARY
-          echo "  </tr>" >> $GITHUB_STEP_SUMMARY
-          echo "</table>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "<p align=\"center\">" >> $GITHUB_STEP_SUMMARY
-          echo "  <strong><em>✨ This comprehensive security scan workflow was orchestrated and automated by SKIDO ✨</em></strong>" >> $GITHUB_STEP_SUMMARY
-          echo "</p>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "<hr>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "<p align=\"center\">" >> $GITHUB_STEP_SUMMARY
-          echo "  <sub>🔒 Powered by Checkov • 🛡️ Securing Infrastructure as Code • ⚡ Built with ❤️ by <strong>SKIDO</strong></sub>" >> $GITHUB_STEP_SUMMARY
-          echo "</p>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</div>" >> $GITHUB_STEP_SUMMARY
+          echo "### Job Status:" >> $GITHUB_STEP_SUMMARY
+          echo "- Main Scan: ${{ needs.checkov_scan_all.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Cloud Infrastructure: ${{ needs.checkov_cloud_infrastructure.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Containers & Orchestration: ${{ needs.checkov_container_orchestration.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- CI/CD Pipelines: ${{ needs.checkov_cicd_pipelines.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Configuration Management: ${{ needs.checkov_configuration_management.result }}" >> $GITHUB_STEP_SUMMARY
 
