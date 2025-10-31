@@ -23,13 +23,22 @@ COPY start.sh .
 # Create necessary directories
 RUN mkdir -p models logs
 
+# Create non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser -d /home/appuser -s /bin/bash appuser
+
+# Change ownership of app directory and files to non-root user
+RUN chown -R appuser:appuser /app
+
+# Make start script executable
+RUN chmod +x start.sh
+
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
 
-# Make start script executable
-RUN chmod +x start.sh
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8000
