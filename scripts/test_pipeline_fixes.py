@@ -19,7 +19,7 @@ def run_command(cmd, description):
     print(f"{'='*50}")
 
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(cmd, shell=False, capture_output=True, text=True, timeout=300)
         if result.returncode == 0:
             print(f"✅ {description} - SUCCESS")
             if result.stdout:
