@@ -1,3 +1,4 @@
+# VKT autofix: Do not pass user-controlled values into child_process, os.system, or subprocess. Use a fixed command allowlist and structured arguments (no shell=True).
 name: CI/CD Pipeline
 
 on:
