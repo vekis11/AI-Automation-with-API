@@ -17,7 +17,7 @@ def run_command(command, description):
     """Run a command and return success status"""
     print(f"🔧 {description}...")
     try:
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        result = subprocess.run(command, shell=False, capture_output=True, text=True)
         if result.returncode == 0:
             print(f"✅ {description} completed successfully")
             return True
